@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { ProductionBlueprint, AspectRatio, ImageSize } from '../types';
+import { ProductionBlueprint, AspectRatio, ImageSize, ModelTier } from '../types';
 import { generateImage, editImage } from '../services/geminiService';
-import { Wand2, Loader2, Download, Image as ImageIcon, Sparkles, Sliders, Upload, Trash2, RotateCcw } from 'lucide-react';
+import { Wand2, Loader2, Download, Image as ImageIcon, Sparkles, Sliders, Upload, Trash2, RotateCcw, Zap } from 'lucide-react';
 
 interface AssetStudioProps {
   blueprint: ProductionBlueprint;
@@ -9,6 +9,7 @@ interface AssetStudioProps {
   setGeneratedImage: (image: string | null) => void;
   uploadedImage: string | null;
   setUploadedImage: (image: string | null) => void;
+  modelTier: ModelTier;
 }
 
 const AssetStudio: React.FC<AssetStudioProps> = ({ 
@@ -16,7 +17,8 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
   generatedImage, 
   setGeneratedImage, 
   uploadedImage, 
-  setUploadedImage 
+  setUploadedImage,
+  modelTier
 }) => {
   const [selectedPrompt, setSelectedPrompt] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
@@ -50,13 +52,13 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
     setIsGenerating(true);
     try {
       if (mode === 'generate') {
-        const result = await generateImage(promptToUse, aspectRatio, size);
+        const result = await generateImage(promptToUse, aspectRatio, size, modelTier);
         if (result) setGeneratedImage(result);
       } else if (mode === 'edit') {
         // Prioritize generated image for iteration, otherwise use uploaded reference
         const sourceImage = generatedImage || uploadedImage;
         if (sourceImage) {
-            const result = await editImage(sourceImage, promptToUse);
+            const result = await editImage(sourceImage, promptToUse, modelTier);
             if (result) setGeneratedImage(result);
         }
       }
@@ -77,6 +79,15 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
       {/* Sidebar Controls */}
       <div className="w-full md:w-1/3 space-y-6">
         
+        {/* Tier Indicator (Mini) */}
+        <div className="flex items-center justify-between text-xs text-gray-400 px-2">
+           <span>Current Engine:</span>
+           <div className={`flex items-center gap-1 font-bold ${modelTier === 'pro' ? 'text-purple-400' : 'text-gold'}`}>
+             {modelTier === 'pro' ? <Sparkles className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+             {modelTier.toUpperCase()}
+           </div>
+        </div>
+
         {/* Mode Selector */}
         <div className="bg-midnight p-4 rounded-lg border border-white/10">
           <h3 className="text-gold font-semibold mb-3 flex items-center gap-2">
@@ -200,13 +211,17 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
                 </div>
 
                 <div>
-                    <label className="text-xs text-gray-500 uppercase font-bold block mb-2">Resolution (Pro)</label>
+                    <label className="text-xs text-gray-500 uppercase font-bold block mb-2">
+                        Resolution {modelTier === 'flash' && <span className="text-red-400 font-normal ml-1">(Pro Only)</span>}
+                    </label>
                     <div className="flex gap-2">
                         {Object.values(ImageSize).map((s) => (
                             <button 
                                 key={s}
                                 onClick={() => setSize(s)}
-                                className={`flex-1 text-xs py-1.5 rounded border ${size === s ? 'border-gold text-gold bg-gold/10' : 'border-white/10 text-gray-400 hover:bg-white/5'}`}
+                                disabled={modelTier === 'flash'}
+                                className={`flex-1 text-xs py-1.5 rounded border ${size === s ? 'border-gold text-gold bg-gold/10' : 'border-white/10 text-gray-400 hover:bg-white/5'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                title={modelTier === 'flash' ? "Resolution selection requires Pro Tier" : ""}
                             >
                                 {s}
                             </button>
@@ -272,7 +287,9 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
             <div className="text-center text-gray-500">
                 <ImageIcon className="w-16 h-16 mx-auto mb-4 opacity-20" />
                 <p>Select a prompt or describe an image to begin.</p>
-                <p className="text-xs mt-2 opacity-50">Gemini 3 Pro (Gen) & 2.5 Flash (Edit)</p>
+                <p className="text-xs mt-2 opacity-50 flex items-center justify-center gap-2">
+                    {modelTier === 'pro' ? 'Powered by Gemini 3 Pro' : 'Powered by Gemini 2.5 Flash'}
+                </p>
             </div>
         )}
       </div>

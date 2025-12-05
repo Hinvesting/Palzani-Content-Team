@@ -65,6 +65,8 @@ export enum ImageSize {
   SIZE_4K = '4K',
 }
 
+export type ModelTier = 'flash' | 'pro';
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

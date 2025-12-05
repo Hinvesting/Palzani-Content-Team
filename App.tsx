@@ -13,12 +13,14 @@ import {
   Trash2,
   Download,
   LogOut,
-  PenTool
+  PenTool,
+  Zap
 } from 'lucide-react';
 import { 
   ProductionBlueprint, 
   AgentLog, 
-  AgentStatus 
+  AgentStatus,
+  ModelTier 
 } from './types';
 import { 
   INITIAL_BLUEPRINT, 
@@ -41,6 +43,7 @@ import CustomTopicManager from './components/CustomTopicManager';
 const STORAGE_KEY_VIDEOS = 'quillnexus_video_types';
 const STORAGE_KEY_COMPLETED = 'quillnexus_completed_videos';
 const STORAGE_KEY_API_KEY = 'quillnexus_api_key';
+const STORAGE_KEY_MODEL_TIER = 'quillnexus_model_tier';
 
 const App: React.FC = () => {
   // State
@@ -51,6 +54,11 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  
+  // Model Tier State
+  const [modelTier, setModelTier] = useState<ModelTier>(() => {
+    return (localStorage.getItem(STORAGE_KEY_MODEL_TIER) as ModelTier) || 'flash';
+  });
   
   // Phase Management State (with Persistence)
   const [videoTypes, setVideoTypes] = useState<Record<number, string>>(() => {
@@ -75,6 +83,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(Array.from(completedVideos)));
   }, [completedVideos]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_MODEL_TIER, modelTier);
+  }, [modelTier]);
 
   // Dynamic Phase Logic
   const totalVideosAvailable = Object.keys(videoTypes).length;
@@ -103,9 +115,6 @@ const App: React.FC = () => {
         }
       }
       
-      // If we are in a dev environment with pre-injected keys (e.g. process.env.API_KEY is handled by build tool not runtime)
-      // This is risky if env var is empty, but for some setups it's needed.
-      // However, for this feature request, we enforce manual entry if not found.
       setHasApiKey(false);
     };
     checkKey();
@@ -207,11 +216,11 @@ const App: React.FC = () => {
     setLogs([]); // Clear previous run
     
     try {
-      addLog('HazeOrchestrator', `Initializing Protocol V3 for Video #${blueprint.videoNumber}...`, 'info');
+      addLog('HazeOrchestrator', `Initializing Protocol V3 for Video #${blueprint.videoNumber} using ${modelTier.toUpperCase()} Tier...`, 'info');
       
       // 1. Research
       addLog('Palzani-16 (Researcher)', 'Scanning for high-volume keywords...', 'info');
-      const researchData = await runResearchAgent(videoTypes[blueprint.videoNumber]);
+      const researchData = await runResearchAgent(videoTypes[blueprint.videoNumber], modelTier);
       setBlueprint(prev => ({
         ...prev,
         seoData: {
@@ -226,7 +235,8 @@ const App: React.FC = () => {
       const scriptData = await runScriptAgent(
         researchData.selectedTitle, 
         blueprint.videoType, 
-        researchData.keywords
+        researchData.keywords,
+        modelTier
       );
       setBlueprint(prev => ({
         ...prev,
@@ -241,7 +251,7 @@ const App: React.FC = () => {
 
       // 3. Visuals
       addLog('Palzani-23 (Design)', 'Generating kinetic imagery prompts...', 'info');
-      const visualData = await runVisualAgent(scriptData.body || "");
+      const visualData = await runVisualAgent(scriptData.body || "", modelTier);
       setBlueprint(prev => ({
         ...prev,
         visualPlan: {
@@ -253,7 +263,7 @@ const App: React.FC = () => {
 
       // 4. Marketing
       addLog('Palzani-5 (Growth)', 'Calculating optimal funnel strategy...', 'info');
-      const marketingData = await runMarketingAgent(blueprint.videoNumber);
+      const marketingData = await runMarketingAgent(blueprint.videoNumber, modelTier);
       setBlueprint(prev => ({
         ...prev,
         marketingData: {
@@ -266,7 +276,7 @@ const App: React.FC = () => {
 
       // 5. Logic Validation
       addLog('Palzani-O (Logic)', 'Validating router logic and URL destination...', 'info');
-      const logicData = await runLogicAgent(marketingData.targetUrl || "https://haze.ai", blueprint.videoNumber);
+      const logicData = await runLogicAgent(marketingData.targetUrl || "https://haze.ai", blueprint.videoNumber, modelTier);
       setBlueprint(prev => ({
         ...prev,
         marketingData: {
@@ -304,9 +314,9 @@ const App: React.FC = () => {
      setLogs([]);
      
      try {
-       addLog('Palzani-Strat', `Researching trends for Phase ${currentPhase + 1} (Videos ${totalVideosAvailable + 1}-${totalVideosAvailable + 5})...`, 'info');
+       addLog('Palzani-Strat', `Researching trends for Phase ${currentPhase + 1} (Videos ${totalVideosAvailable + 1}-${totalVideosAvailable + 5}) using ${modelTier.toUpperCase()}...`, 'info');
        
-       const newTopics = await runStrategyAgent(totalVideosAvailable);
+       const newTopics = await runStrategyAgent(totalVideosAvailable, modelTier);
        
        setVideoTypes(prev => ({
          ...prev,
@@ -347,6 +357,25 @@ const App: React.FC = () => {
                         placeholder="AIzaSy..."
                         className="w-full bg-black/40 border border-white/20 rounded-lg p-3 text-white focus:border-gold focus:outline-none transition-colors"
                     />
+                </div>
+
+                 {/* Model Selection in Auth Screen */}
+                 <div>
+                    <label className="text-xs text-gold uppercase font-bold ml-1 mb-1 block">Preferred Model Tier</label>
+                    <div className="flex gap-2 p-1 bg-black/40 rounded-lg border border-white/10">
+                        <button 
+                            onClick={() => setModelTier('flash')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded transition-colors ${modelTier === 'flash' ? 'bg-gold text-midnight font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Zap className="w-3 h-3" /> Flash (Fast/Free)
+                        </button>
+                        <button 
+                            onClick={() => setModelTier('pro')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm rounded transition-colors ${modelTier === 'pro' ? 'bg-purple-600 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Sparkles className="w-3 h-3" /> Pro (Smart/Paid)
+                        </button>
+                    </div>
                 </div>
 
                 <button 
@@ -449,69 +478,79 @@ const App: React.FC = () => {
             </h1>
 
             {/* Quick Actions (Only visible in Blueprint view) */}
-            {currentView === 'blueprint' && (
-                <div className="flex items-center gap-4">
-                    
-                    {/* Phase Unlock Button (Visible when all current videos are done) */}
-                    {isCurrentPhaseComplete && (
-                       <button
-                          onClick={generateNextPhase}
-                          disabled={isProcessing}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg animate-fade-in"
-                       >
-                          <Sparkles className="w-4 h-4" />
-                          {isProcessing ? 'RESEARCHING...' : `UNLOCK PHASE ${currentPhase + 1}`}
-                       </button>
-                    )}
+            <div className="flex items-center gap-4">
 
-                    {/* Progress Indicator (if not complete) */}
-                    {!isCurrentPhaseComplete && (
-                       <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 px-3 py-1 border border-white/5 rounded-full">
-                           <Lock className="w-3 h-3" />
-                           <span>Complete Phase {currentPhase} to unlock next</span>
-                       </div>
-                    )}
-
-                    {/* Download Script Button */}
-                    <button 
-                        onClick={handleDownloadScript}
-                        disabled={!blueprint.scriptContent.body}
-                        className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors border border-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Download Script"
-                    >
-                        <Download className="w-4 h-4" />
-                    </button>
-
-                    <select 
-                        className="bg-black/30 border border-white/10 text-sm rounded px-3 py-1.5 focus:border-gold outline-none max-w-[200px]"
-                        value={blueprint.videoNumber}
-                        onChange={(e) => setBlueprint(prev => ({...prev, videoNumber: Number(e.target.value), videoType: videoTypes[Number(e.target.value)]}))}
-                        disabled={isProcessing}
-                    >
-                        {Object.entries(videoTypes).map(([num, label]) => (
-                            <option key={num} value={num}>
-                                Video #{num}: {(label as string).split('/')[0]} 
-                                {completedVideos.has(Number(num)) ? ' ✓' : ''}
-                            </option>
-                        ))}
-                    </select>
-
-                    <button 
-                        onClick={startProtocol}
-                        disabled={isProcessing}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded text-sm font-bold transition-all ${isProcessing ? 'bg-gray-600 cursor-not-allowed' : 'bg-gold hover:bg-gold-hover text-midnight shadow-[0_0_15px_rgba(241,196,15,0.3)]'}`}
-                    >
-                        <Play className="w-4 h-4 fill-current" />
-                        {isProcessing ? 'EXECUTING...' : 'INITIATE PROTOCOL'}
-                    </button>
-                    
-                    {!sidebarOpen && (
-                         <button onClick={() => setSidebarOpen(true)} className="ml-2 text-gray-400 hover:text-white">
-                            <Terminal className="w-5 h-5" />
-                         </button>
-                    )}
+                {/* Model Tier Toggle (Always visible) */}
+                <div className="flex items-center gap-2 text-xs bg-black/40 rounded-full border border-white/10 p-1 mr-4">
+                     <button 
+                        onClick={() => setModelTier('flash')}
+                        className={`px-3 py-1 rounded-full flex items-center gap-1 transition-all ${modelTier === 'flash' ? 'bg-gold text-midnight font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                     >
+                        <Zap className="w-3 h-3" /> Flash
+                     </button>
+                     <button 
+                        onClick={() => setModelTier('pro')}
+                        className={`px-3 py-1 rounded-full flex items-center gap-1 transition-all ${modelTier === 'pro' ? 'bg-purple-600 text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                     >
+                        <Sparkles className="w-3 h-3" /> Pro
+                     </button>
                 </div>
-            )}
+
+                {currentView === 'blueprint' && (
+                    <>
+                        {/* Phase Unlock Button (Visible when all current videos are done) */}
+                        {isCurrentPhaseComplete && (
+                           <button
+                              onClick={generateNextPhase}
+                              disabled={isProcessing}
+                              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded text-sm font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg animate-fade-in"
+                           >
+                              <Sparkles className="w-4 h-4" />
+                              {isProcessing ? 'RESEARCHING...' : `UNLOCK PHASE ${currentPhase + 1}`}
+                           </button>
+                        )}
+
+                        {/* Download Script Button */}
+                        <button 
+                            onClick={handleDownloadScript}
+                            disabled={!blueprint.scriptContent.body}
+                            className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors border border-white/5 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Download Script"
+                        >
+                            <Download className="w-4 h-4" />
+                        </button>
+
+                        <select 
+                            className="bg-black/30 border border-white/10 text-sm rounded px-3 py-1.5 focus:border-gold outline-none max-w-[200px]"
+                            value={blueprint.videoNumber}
+                            onChange={(e) => setBlueprint(prev => ({...prev, videoNumber: Number(e.target.value), videoType: videoTypes[Number(e.target.value)]}))}
+                            disabled={isProcessing}
+                        >
+                            {Object.entries(videoTypes).map(([num, label]) => (
+                                <option key={num} value={num}>
+                                    Video #{num}: {(label as string).split('/')[0]} 
+                                    {completedVideos.has(Number(num)) ? ' ✓' : ''}
+                                </option>
+                            ))}
+                        </select>
+
+                        <button 
+                            onClick={startProtocol}
+                            disabled={isProcessing}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded text-sm font-bold transition-all ${isProcessing ? 'bg-gray-600 cursor-not-allowed' : 'bg-gold hover:bg-gold-hover text-midnight shadow-[0_0_15px_rgba(241,196,15,0.3)]'}`}
+                        >
+                            <Play className="w-4 h-4 fill-current" />
+                            {isProcessing ? 'EXECUTING...' : 'INITIATE PROTOCOL'}
+                        </button>
+                    </>
+                )}
+                
+                {!sidebarOpen && (
+                        <button onClick={() => setSidebarOpen(true)} className="ml-2 text-gray-400 hover:text-white">
+                        <Terminal className="w-5 h-5" />
+                        </button>
+                )}
+            </div>
         </header>
 
         {/* Scrollable View Area */}
@@ -530,6 +569,7 @@ const App: React.FC = () => {
                     setGeneratedImage={setGeneratedImage}
                     uploadedImage={uploadedImage}
                     setUploadedImage={setUploadedImage}
+                    modelTier={modelTier}
                  />
              )}
              {currentView === 'custom' && (

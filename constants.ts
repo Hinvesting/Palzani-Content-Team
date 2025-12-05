@@ -43,14 +43,29 @@ export const CONTENT_PILLARS = [
   "THE AI AVATAR REVEAL (Meta-demonstration)"
 ];
 
-// Model Constants
-export const MODEL_RESEARCH = 'gemini-2.5-flash';
-export const MODEL_SCRIPTING = 'gemini-2.5-flash'; 
-export const MODEL_VISUAL_PLANNING = 'gemini-2.5-flash'; 
-export const MODEL_MARKETING = 'gemini-2.5-flash-lite';
-export const MODEL_LOGIC = 'gemini-2.5-flash-lite'; 
-export const MODEL_IMAGE_GEN = 'gemini-2.5-flash-image'; 
-export const MODEL_IMAGE_EDIT = 'gemini-2.5-flash-image'; 
+// Model Configuration for Tiers
+export const MODEL_CONFIGS = {
+  flash: {
+    research: 'gemini-2.5-flash',
+    scripting: 'gemini-2.5-flash',
+    visual: 'gemini-2.5-flash',
+    marketing: 'gemini-2.5-flash-lite',
+    logic: 'gemini-2.5-flash-lite',
+    imageGen: 'gemini-2.5-flash-image',
+    imageEdit: 'gemini-2.5-flash-image',
+    strategy: 'gemini-2.5-flash'
+  },
+  pro: {
+    research: 'gemini-2.5-flash', // Research is search-heavy, Flash is often sufficient/faster
+    scripting: 'gemini-3-pro-preview', // Better reasoning for complex scripts
+    visual: 'gemini-2.5-flash', 
+    marketing: 'gemini-2.5-flash-lite',
+    logic: 'gemini-2.5-flash-lite',
+    imageGen: 'gemini-3-pro-image-preview', // High fidelity
+    imageEdit: 'gemini-2.5-flash-image', // Edit not widely supported on Pro yet
+    strategy: 'gemini-3-pro-preview' // Deeper strategic reasoning
+  }
+};
 
 // Persona Instructions
 export const SYSTEM_INSTRUCTION_ORCHESTRATOR = `

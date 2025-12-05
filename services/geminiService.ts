@@ -1,12 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
-  MODEL_RESEARCH, 
-  MODEL_SCRIPTING, 
-  MODEL_VISUAL_PLANNING, 
-  MODEL_MARKETING, 
-  MODEL_LOGIC,
-  MODEL_IMAGE_GEN,
-  MODEL_IMAGE_EDIT,
+  MODEL_CONFIGS,
   SYSTEM_INSTRUCTION_DIRECTOR,
   SYSTEM_INSTRUCTION_DESIGNER,
   SYSTEM_INSTRUCTION_RESEARCHER,
@@ -14,7 +8,7 @@ import {
   SYSTEM_INSTRUCTION_STRATEGIST,
   URL_LEAD_MAGNET
 } from "../constants";
-import { AspectRatio, ImageSize } from "../types";
+import { AspectRatio, ImageSize, ModelTier } from "../types";
 
 // Helper to get a fresh client instance with the latest env key or user stored key
 const getAiClient = () => {
@@ -37,7 +31,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 5000): 
 
     if (retries > 0 && (isRateLimit || isServerOverload)) {
       console.warn(`API Request failed with ${error.status || 'rate limit'}. Retrying in ${delayMs}ms...`);
-      // Fallback for Strategy/Scripting to Flash if Pro fails (already handled by logic below, but good for robust retry)
+      // Fallback logic handled within specific agents if needed, this handles raw retries
       await wait(delayMs);
       return withRetry(fn, retries - 1, delayMs * 2);
     }
@@ -62,8 +56,8 @@ const cleanJson = (text: string): string => {
 };
 
 // --- Agent: Palzani-16 (Researcher) ---
-export const runResearchAgent = async (topic: string) => {
-  const model = MODEL_RESEARCH;
+export const runResearchAgent = async (topic: string, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].research;
   
   try {
     return await withRetry(async () => {
@@ -102,8 +96,8 @@ export const runResearchAgent = async (topic: string) => {
 };
 
 // --- Agent: Palzani-26 (Director) ---
-export const runScriptAgent = async (title: string, videoType: string, keywords: string[]) => {
-  const model = MODEL_SCRIPTING;
+export const runScriptAgent = async (title: string, videoType: string, keywords: string[], tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].scripting;
   
   try {
     return await withRetry(async () => {
@@ -136,8 +130,8 @@ export const runScriptAgent = async (title: string, videoType: string, keywords:
 };
 
 // --- Agent: Palzani-23 (Designer) & Palzani-14 (Veo) ---
-export const runVisualAgent = async (scriptBody: string) => {
-  const model = MODEL_VISUAL_PLANNING;
+export const runVisualAgent = async (scriptBody: string, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].visual;
 
   try {
     return await withRetry(async () => {
@@ -160,8 +154,8 @@ export const runVisualAgent = async (scriptBody: string) => {
 };
 
 // --- Agent: Palzani-5 (Marketer) ---
-export const runMarketingAgent = async (videoNumber: number) => {
-  const model = MODEL_MARKETING; // Fast model
+export const runMarketingAgent = async (videoNumber: number, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].marketing;
 
   try {
     return await withRetry(async () => {
@@ -182,8 +176,8 @@ export const runMarketingAgent = async (videoNumber: number) => {
 };
 
 // --- Agent: Palzani-O (Automation/Logic) ---
-export const runLogicAgent = async (targetUrl: string, videoNumber: number) => {
-  const model = MODEL_LOGIC;
+export const runLogicAgent = async (targetUrl: string, videoNumber: number, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].logic;
   
   try {
     return await withRetry(async () => {
@@ -204,8 +198,8 @@ export const runLogicAgent = async (targetUrl: string, videoNumber: number) => {
 }
 
 // --- Agent: Palzani-Strat (Strategist) ---
-export const runStrategyAgent = async (lastVideoNumber: number) => {
-  const model = MODEL_SCRIPTING; // Use Flash (MODEL_SCRIPTING is now flash)
+export const runStrategyAgent = async (lastVideoNumber: number, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].strategy;
   const start = lastVideoNumber + 1;
   const end = lastVideoNumber + 5;
 
@@ -246,22 +240,27 @@ export const runStrategyAgent = async (lastVideoNumber: number) => {
 };
 
 // --- Feature: Actual Image Generation (Nano Banana Pro) ---
-export const generateImage = async (prompt: string, aspectRatio: AspectRatio, size: ImageSize) => {
-  const model = MODEL_IMAGE_GEN;
+export const generateImage = async (prompt: string, aspectRatio: AspectRatio, size: ImageSize, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].imageGen;
 
   try {
     return await withRetry(async () => {
       const ai = getAiClient();
+      const config: any = {
+        imageConfig: {
+          aspectRatio: aspectRatio,
+        }
+      };
+
+      // imageSize is NOT supported by gemini-2.5-flash-image
+      if (model.includes('pro')) {
+        config.imageConfig.imageSize = size;
+      }
+
       const response = await ai.models.generateContent({
         model: model,
         contents: prompt,
-        config: {
-          imageConfig: {
-            aspectRatio: aspectRatio,
-            // imageSize is NOT supported by gemini-2.5-flash-image
-            ...(model.includes('flash') ? {} : { imageSize: size })
-          }
-        }
+        config: config
       });
 
       // Extract image
@@ -279,8 +278,8 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, si
 };
 
 // --- Feature: Image Editing (Nano Banana) ---
-export const editImage = async (base64Image: string, prompt: string) => {
-  const model = MODEL_IMAGE_EDIT;
+export const editImage = async (base64Image: string, prompt: string, tier: ModelTier = 'flash') => {
+  const model = MODEL_CONFIGS[tier].imageEdit;
   // Remove header if present for raw data
   const rawBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
