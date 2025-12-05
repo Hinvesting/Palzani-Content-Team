@@ -1,0 +1,7 @@
+{
+  "name": "QuillNexus Pro - Launch Protocol V3",
+  "description": "Automated orchestration system for HAZE AI Launch Protocol V3.0, featuring multi-agent workflow for script generation, visual planning, and asset creation using Gemini models.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
