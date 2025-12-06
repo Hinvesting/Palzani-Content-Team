@@ -160,6 +160,13 @@ const App: React.FC = () => {
   const handleDownloadScript = () => {
     if (!blueprint.scriptContent.body && !blueprint.scriptContent.hook) return;
 
+    // Separate Voiceover from Scenes
+    const voLines = blueprint.scriptContent.sceneBreakdown.map((scene, i) => {
+        const match = scene.match(/\{(.*?)\}/);
+        const text = match ? match[1].replace(/^Voiceover:\s*/i, '').trim() : "No dialogue.";
+        return `SCENE ${i+1}: ${text}`;
+    });
+
     const lines = [
         `PROJECT: ${blueprint.seoData.selectedTitle || 'Untitled'}`,
         `VIDEO TYPE: ${blueprint.videoType}`,
@@ -173,7 +180,10 @@ const App: React.FC = () => {
         ``,
         `CTA: ${blueprint.scriptContent.cta}`,
         ``,
-        `[SCENE BREAKDOWN & VOICEOVER]`,
+        `[VOICEOVER SCRIPT]`,
+        ...voLines,
+        ``,
+        `[SCENE BREAKDOWN (VISUALS & VO)]`,
         ...blueprint.scriptContent.sceneBreakdown,
     ];
 
@@ -250,16 +260,18 @@ const App: React.FC = () => {
       addLog('Palzani-26 (Director)', 'Script generated and validated.', 'success');
 
       // 3. Visuals
-      addLog('Palzani-23 (Design)', 'Generating kinetic imagery prompts...', 'info');
-      const visualData = await runVisualAgent(scriptData.body || "", modelTier);
+      addLog('Palzani-23 (Design)', 'Generating 1:1 scene visual prompts...', 'info');
+      // Pass the sceneBreakdown array directly to ensure 1:1 mapping
+      const visualData = await runVisualAgent(scriptData.sceneBreakdown || [], modelTier);
       setBlueprint(prev => ({
         ...prev,
         visualPlan: {
+            thumbnailPrompt: visualData.thumbnailPrompt || "Pending...",
             imagePrompts: visualData.imagePrompts || [],
             videoPrompts: visualData.videoPrompts || []
         }
       }));
-      addLog('Palzani-23 (Design)', `Created ${visualData.imagePrompts?.length || 0} image prompts.`, 'success');
+      addLog('Palzani-23 (Design)', `Created ${visualData.imagePrompts?.length || 0} aligned image prompts + Thumbnail.`, 'success');
 
       // 4. Marketing
       addLog('Palzani-5 (Growth)', 'Calculating optimal funnel strategy...', 'info');
@@ -343,7 +355,7 @@ const App: React.FC = () => {
             <div>
                 <h2 className="text-2xl font-bold text-white mb-2">Authentication Required</h2>
                 <p className="text-gray-400 text-sm">
-                    Enter your Gemini API Key to access QuillNexus Pro. Your key is saved locally in your browser.
+                    Enter your Gemini API Key to access HAZE AI Content Studio. Your key is saved locally in your browser.
                 </p>
             </div>
             
@@ -413,7 +425,7 @@ const App: React.FC = () => {
       {/* Sidebar Navigation */}
       <div className="w-16 md:w-20 bg-midnight border-r border-white/10 flex flex-col items-center py-6 z-20 shrink-0">
         <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center mb-8 shadow-lg shadow-gold/20">
-          <span className="text-midnight font-bold text-xl">Q</span>
+          <span className="text-midnight font-bold text-xl">H</span>
         </div>
         
         <nav className="flex-1 space-y-4">
@@ -473,7 +485,7 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="h-16 border-b border-white/10 bg-midnight/50 flex items-center justify-between px-6 backdrop-blur-sm shrink-0">
             <h1 className="text-lg font-semibold tracking-wide flex items-center gap-2">
-                <span className="text-gold">QUILLNEXUS</span> PRO
+                <span className="text-gold">HAZE AI</span> CONTENT STUDIO
                 <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-gray-400">V3.0 ORCHESTRATOR</span>
             </h1>
 

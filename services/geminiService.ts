@@ -109,19 +109,31 @@ export const runScriptAgent = async (title: string, videoType: string, keywords:
         CRITICAL CONSTRAINTS:
         1. Scene Limit: STRICTLY Maximum 20 scenes.
         2. Shot Timing: Each scene MUST be 8-30 seconds.
-        3. Total Duration: Target exactly one of: 60s, 90s, 180s, 360s, or 720s based on complexity.
+        3. Total Duration: Target exactly one of: 60s, 90s, 180s, 360s, or 720s.
         
         Output format:
-        Include the estimated time per scene in the 'sceneBreakdown' array strings (e.g., "[15s] Visual Description {Voiceover}").
+        {
+            "hook": "The opening line",
+            "body": "The full main narration text/script body. MUST NOT BE EMPTY.",
+            "cta": "The specific call to action line. MUST NOT BE EMPTY.",
+            "sceneBreakdown": ["[15s] Visual Description {Voiceover: text}", "..."]
+        }
+
+        ENSURE 'hook', 'body', and 'cta' are filled with high-quality content. Do not return undefined or null.
         
         IMPORTANT: output ONLY the JSON object.`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION_DIRECTOR,
-          // Removed responseSchema/MimeType to avoid Flash model issues, rely on prompt and cleanJson
         }
       });
 
-      return JSON.parse(cleanJson(response.text || '{}'));
+      const data = JSON.parse(cleanJson(response.text || '{}'));
+      
+      // Fallback validation
+      if (!data.body) data.body = "Script body generation failed. Please retry.";
+      if (!data.cta) data.cta = "Call to action generation failed.";
+
+      return data;
     });
   } catch (error) {
     console.error("Script Agent Failed:", error);
@@ -130,7 +142,7 @@ export const runScriptAgent = async (title: string, videoType: string, keywords:
 };
 
 // --- Agent: Palzani-23 (Designer) & Palzani-14 (Veo) ---
-export const runVisualAgent = async (scriptBody: string, tier: ModelTier = 'flash') => {
+export const runVisualAgent = async (scenes: string[], tier: ModelTier = 'flash') => {
   const model = MODEL_CONFIGS[tier].visual;
 
   try {
@@ -138,8 +150,24 @@ export const runVisualAgent = async (scriptBody: string, tier: ModelTier = 'flas
       const ai = getAiClient();
       const response = await ai.models.generateContent({
         model: model,
-        contents: `Based on this script body, generate 3 image prompts (for midjourney/imagen) and 3 video prompts (for Veo). Script: ${scriptBody.substring(0, 1000)}...
-        Output JSON only.`,
+        contents: `Analyze these script scenes and generate visual prompts.
+        
+        SCENES (${scenes.length} total):
+        ${JSON.stringify(scenes)}
+
+        REQUIREMENTS:
+        1. 'imagePrompts': Generate exactly ONE visual prompt for EACH scene provided. The array length MUST match the input scenes length (${scenes.length}).
+        2. 'thumbnailPrompt': Generate one high-quality prompt for the video thumbnail.
+        3. 'videoPrompts': Generate 3 abstract B-Roll video concepts.
+
+        Output JSON structure:
+        {
+            "thumbnailPrompt": "Description...",
+            "imagePrompts": ["Prompt for Scene 1", "Prompt for Scene 2", ...],
+            "videoPrompts": ["Video 1", "Video 2", "Video 3"]
+        }
+        
+        IMPORTANT: output ONLY the JSON object.`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION_DESIGNER,
         }

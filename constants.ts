@@ -15,6 +15,7 @@ export const INITIAL_BLUEPRINT: ProductionBlueprint = {
     sceneBreakdown: []
   },
   visualPlan: {
+    thumbnailPrompt: "",
     imagePrompts: [],
     videoPrompts: []
   },

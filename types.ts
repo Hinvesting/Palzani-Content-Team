@@ -11,6 +11,7 @@ export interface ScriptContent {
 }
 
 export interface VisualPlan {
+  thumbnailPrompt: string;
   imagePrompts: string[];
   videoPrompts: string[];
 }

@@ -15,7 +15,7 @@ const AgentLogPanel: React.FC<AgentLogPanelProps> = ({ logs, onToggle }) => {
   }, [logs]);
 
   return (
-    <div className="bg-midnight-dark border-l border-white/10 w-80 flex flex-col h-full absolute right-0 top-0 bottom-0 z-10 shadow-2xl">
+    <div className="bg-midnight-dark border-l border-white/10 w-full h-full flex flex-col z-10 shadow-2xl">
       <button 
         onClick={onToggle}
         className="p-4 border-b border-white/10 flex items-center justify-between bg-midnight hover:bg-white/5 transition-colors w-full text-left focus:outline-none group"

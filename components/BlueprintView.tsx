@@ -52,6 +52,22 @@ const BlueprintView: React.FC<BlueprintViewProps> = ({ blueprint, generatedImage
   const hasAssets = generatedImage || uploadedImage;
 
   const handleDownload = () => {
+    // Separate Voiceover from Scenes using Regex
+    const voLines = blueprint.scriptContent.sceneBreakdown.map((scene, i) => {
+        // Look for text inside {Voiceover: ...} or just {...}
+        const match = scene.match(/\{(.*?)\}/);
+        const text = match ? match[1].replace(/^Voiceover:\s*/i, '').trim() : "No dialogue.";
+        return `SCENE ${i+1}: ${text}`;
+    });
+
+    // Create Visual Description + Prompt pairs
+    const visualLines = blueprint.scriptContent.sceneBreakdown.map((scene, i) => {
+         // Remove the VO part for the visual description
+         const visualOnly = scene.replace(/\{.*?\}/, '').trim();
+         const prompt = blueprint.visualPlan.imagePrompts[i] || "No specific prompt generated.";
+         return `SCENE ${i+1}: ${visualOnly}\n   [GENERATED PROMPT]: ${prompt}`;
+    });
+
     const lines = [
         `PROJECT: ${blueprint.seoData.selectedTitle || 'Untitled'}`,
         `VIDEO TYPE: ${blueprint.videoType}`,
@@ -68,11 +84,16 @@ const BlueprintView: React.FC<BlueprintViewProps> = ({ blueprint, generatedImage
         ``,
         `CTA: ${blueprint.scriptContent.cta}`,
         ``,
-        `[SCENE BREAKDOWN]`,
-        ...blueprint.scriptContent.sceneBreakdown,
+        `[VOICEOVER SCRIPT]`,
+        ...voLines,
         ``,
-        `[VISUAL PROMPTS]`,
-        ...blueprint.visualPlan.imagePrompts.map(p => `- [IMAGE] ${p}`),
+        `[SCENE BREAKDOWN & VISUALS]`,
+        ...visualLines,
+        ``,
+        `[THUMBNAIL PROMPT]`,
+        `${blueprint.visualPlan.thumbnailPrompt || "Pending..."}`,
+        ``,
+        `[VIDEO B-ROLL IDEAS (VEO)]`,
         ...blueprint.visualPlan.videoPrompts.map(p => `- [VIDEO] ${p}`),
         ``,
         `[MARKETING]`,
@@ -160,10 +181,20 @@ const BlueprintView: React.FC<BlueprintViewProps> = ({ blueprint, generatedImage
                 <h4 className="text-sm uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4"/> Image Prompts
                 </h4>
+                
+                {/* Thumbnail Display */}
+                {blueprint.visualPlan.thumbnailPrompt && (
+                     <div className="mb-4 bg-gold/5 border border-gold/20 p-3 rounded">
+                        <span className="text-xs font-bold text-gold uppercase block mb-1">Thumbnail Concept</span>
+                        <p className="text-xs text-gray-300 italic">{blueprint.visualPlan.thumbnailPrompt}</p>
+                     </div>
+                )}
+
                 <ul className="space-y-2">
                     {blueprint.visualPlan.imagePrompts.map((prompt, i) => (
-                        <li key={i} className="text-xs bg-black/30 p-2 rounded text-gray-400 border border-white/5">
-                            {prompt}
+                        <li key={i} className="text-xs bg-black/30 p-2 rounded text-gray-400 border border-white/5 flex gap-2">
+                            <span className="text-gold/50 font-mono shrink-0">[{i+1}]</span>
+                            <span>{prompt}</span>
                         </li>
                     ))}
                     {blueprint.visualPlan.imagePrompts.length === 0 && <span className="text-gray-500 text-sm italic">Pending...</span>}

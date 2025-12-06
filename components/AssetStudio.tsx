@@ -158,25 +158,46 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
               <span className="text-xs font-normal text-gray-500">Auto-Generates</span>
             </h3>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scroll">
+              
+              {/* Thumbnail Prompt Button */}
+              {blueprint.visualPlan.thumbnailPrompt && (
+                  <button
+                    onClick={() => {
+                        const p = blueprint.visualPlan.thumbnailPrompt;
+                        setSelectedPrompt(p);
+                        setCustomPrompt(p);
+                        handleGenerate(p);
+                    }}
+                    disabled={isGenerating}
+                    className="w-full text-left text-xs p-3 rounded bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 mb-3 transition-colors flex items-center gap-2 font-bold"
+                  >
+                      <ImageIcon className="w-3 h-3" />
+                      Generate Thumbnail
+                  </button>
+              )}
+
               {blueprint.scriptContent.sceneBreakdown.length > 0 ? (
                 blueprint.scriptContent.sceneBreakdown.map((scene, i) => {
-                  // Helper to strip timestamp [15s] and clean up
-                  const cleanPrompt = scene.replace(/^\[.*?\]\s*/, '').trim();
+                  // Helper to strip timestamp [15s] and clean up for display
+                  const cleanSceneDisplay = scene.replace(/^\[.*?\]\s*/, '').trim();
                   
+                  // Use the OPTIMIZED PROMPT from the Visual Agent if available (matching index), otherwise use raw scene
+                  const optimizedPrompt = blueprint.visualPlan.imagePrompts[i] || cleanSceneDisplay;
+
                   return (
                     <button
                       key={i}
                       onClick={() => { 
-                        setSelectedPrompt(cleanPrompt); 
-                        setCustomPrompt(cleanPrompt);
-                        handleGenerate(cleanPrompt); // Auto-trigger
+                        setSelectedPrompt(optimizedPrompt); 
+                        setCustomPrompt(optimizedPrompt);
+                        handleGenerate(optimizedPrompt); // Auto-trigger with the optimized prompt
                       }}
                       disabled={isGenerating}
                       className="w-full text-left text-xs p-2 rounded bg-white/5 hover:bg-white/10 text-gray-300 truncate transition-colors border border-transparent hover:border-gold/30 disabled:opacity-50"
-                      title={cleanPrompt}
+                      title={optimizedPrompt}
                     >
                       <span className="text-gold font-mono mr-2">[{i+1}]</span>
-                      {cleanPrompt}
+                      {cleanSceneDisplay}
                     </button>
                   );
                 })
