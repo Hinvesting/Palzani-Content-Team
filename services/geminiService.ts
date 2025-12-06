@@ -268,7 +268,7 @@ export const runStrategyAgent = async (lastVideoNumber: number, tier: ModelTier 
 };
 
 // --- Feature: Actual Image Generation (Nano Banana Pro) ---
-export const generateImage = async (prompt: string, aspectRatio: AspectRatio, size: ImageSize, tier: ModelTier = 'flash') => {
+export const generateImage = async (prompt: string, aspectRatio: AspectRatio, size: ImageSize, tier: ModelTier = 'flash', referenceImage?: string | null) => {
   const model = MODEL_CONFIGS[tier].imageGen;
 
   try {
@@ -285,9 +285,28 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, si
         config.imageConfig.imageSize = size;
       }
 
+      let contents: any = prompt;
+
+      // Handle Reference Image for Multimodal prompting
+      if (referenceImage) {
+         // Clean base64 header if present
+         const rawBase64 = referenceImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+         contents = {
+            parts: [
+                {
+                    inlineData: {
+                        mimeType: 'image/png',
+                        data: rawBase64
+                    }
+                },
+                { text: prompt }
+            ]
+         };
+      }
+
       const response = await ai.models.generateContent({
         model: model,
-        contents: prompt,
+        contents: contents,
         config: config
       });
 
@@ -309,7 +328,7 @@ export const generateImage = async (prompt: string, aspectRatio: AspectRatio, si
 export const editImage = async (base64Image: string, prompt: string, tier: ModelTier = 'flash') => {
   const model = MODEL_CONFIGS[tier].imageEdit;
   // Remove header if present for raw data
-  const rawBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+  const rawBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
   try {
     return await withRetry(async () => {

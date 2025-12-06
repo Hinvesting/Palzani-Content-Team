@@ -52,7 +52,8 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
     setIsGenerating(true);
     try {
       if (mode === 'generate') {
-        const result = await generateImage(promptToUse, aspectRatio, size, modelTier);
+        // Pass uploadedImage as optional reference if it exists
+        const result = await generateImage(promptToUse, aspectRatio, size, modelTier, uploadedImage);
         if (result) setGeneratedImage(result);
       } else if (mode === 'edit') {
         // Prioritize generated image for iteration, otherwise use uploaded reference
@@ -299,8 +300,9 @@ const AssetStudio: React.FC<AssetStudioProps> = ({
 
                 {/* Status Indicator */}
                 <div className="absolute bottom-4 left-4">
-                     <span className="bg-black/60 backdrop-blur text-xs text-white px-3 py-1 rounded-full border border-white/10">
+                     <span className="bg-black/60 backdrop-blur text-xs text-white px-3 py-1 rounded-full border border-white/10 flex items-center gap-2">
                         {generatedImage ? 'Generated Output' : 'Reference Image'}
+                        {mode === 'generate' && uploadedImage && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>}
                      </span>
                 </div>
             </>
