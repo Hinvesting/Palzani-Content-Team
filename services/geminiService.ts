@@ -111,23 +111,27 @@ export const runScriptAgent = async (title: string, videoType: string, keywords:
         2. Shot Timing: Each scene MUST be 8-30 seconds.
         3. Total Duration: Target exactly one of: 60s, 90s, 180s, 360s, or 720s.
         
-        Output format:
-        {
-            "hook": "The opening line",
-            "body": "The full main narration text/script body. MUST NOT BE EMPTY.",
-            "cta": "The specific call to action line. MUST NOT BE EMPTY.",
-            "sceneBreakdown": ["[15s] Visual Description {Voiceover: text}", "..."]
-        }
-
-        ENSURE 'hook', 'body', and 'cta' are filled with high-quality content. Do not return undefined or null.
-        
-        IMPORTANT: output ONLY the JSON object.`,
+        ENSURE 'hook', 'body', and 'cta' are filled with high-quality content. Do not return undefined or null.`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION_DIRECTOR,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              hook: { type: Type.STRING },
+              body: { type: Type.STRING },
+              cta: { type: Type.STRING },
+              sceneBreakdown: { 
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["hook", "body", "cta", "sceneBreakdown"]
+          }
         }
       });
 
-      const data = JSON.parse(cleanJson(response.text || '{}'));
+      const data = JSON.parse(response.text || '{}');
       
       // Fallback validation
       if (!data.body) data.body = "Script body generation failed. Please retry.";
@@ -159,21 +163,29 @@ export const runVisualAgent = async (scenes: string[], tier: ModelTier = 'flash'
         1. 'imagePrompts': Generate exactly ONE visual prompt for EACH scene provided. The array length MUST match the input scenes length (${scenes.length}).
         2. 'thumbnailPrompt': Generate one high-quality prompt for the video thumbnail.
         3. 'videoPrompts': Generate 3 abstract B-Roll video concepts.
-
-        Output JSON structure:
-        {
-            "thumbnailPrompt": "Description...",
-            "imagePrompts": ["Prompt for Scene 1", "Prompt for Scene 2", ...],
-            "videoPrompts": ["Video 1", "Video 2", "Video 3"]
-        }
-        
-        IMPORTANT: output ONLY the JSON object.`,
+        `,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION_DESIGNER,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              thumbnailPrompt: { type: Type.STRING },
+              imagePrompts: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              videoPrompts: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["thumbnailPrompt", "imagePrompts", "videoPrompts"]
+          }
         }
       });
 
-      return JSON.parse(cleanJson(response.text || '{}'));
+      return JSON.parse(response.text || '{}');
     });
   } catch (error) {
     console.error("Visual Agent Failed:", error);
@@ -190,12 +202,20 @@ export const runMarketingAgent = async (videoNumber: number, tier: ModelTier = '
       const ai = getAiClient();
       const response = await ai.models.generateContent({
         model: model,
-        contents: `Determine the CTA strategy for Video #${videoNumber} of the 5-part launch sequence. Video 1-3 should use the Lead Magnet URL: ${URL_LEAD_MAGNET}. Return JSON with targetUrl and offerType.`,
+        contents: `Determine the CTA strategy for Video #${videoNumber} of the 5-part launch sequence. Video 1-3 should use the Lead Magnet URL: ${URL_LEAD_MAGNET}.`,
         config: {
-          // No tools, so we can use schema if we want, but sticking to text+clean for consistency with Flash
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              targetUrl: { type: Type.STRING },
+              offerType: { type: Type.STRING }
+            },
+            required: ["targetUrl", "offerType"]
+          }
         }
       });
-      return JSON.parse(cleanJson(response.text || '{}'));
+      return JSON.parse(response.text || '{}');
     });
   } catch (error) {
     console.error("Marketing Agent Failed:", error);
@@ -212,12 +232,21 @@ export const runLogicAgent = async (targetUrl: string, videoNumber: number, tier
       const ai = getAiClient();
       const response = await ai.models.generateContent({
         model: model,
-        contents: `Validate the URL "${targetUrl}" for Video #${videoNumber}. Does it match the expected funnel stage? Return JSON with isValid (boolean) and report (string).`,
+        contents: `Validate the URL "${targetUrl}" for Video #${videoNumber}. Does it match the expected funnel stage?`,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION_LOGIC,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              isValid: { type: Type.BOOLEAN },
+              report: { type: Type.STRING }
+            },
+            required: ["isValid", "report"]
+          }
         }
       });
-      return JSON.parse(cleanJson(response.text || '{}'));
+      return JSON.parse(response.text || '{}');
     });
   } catch (error) {
     console.error("Logic Agent Failed:", error);
